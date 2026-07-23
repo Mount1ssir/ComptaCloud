@@ -1,7 +1,7 @@
 "use client";
 
-import { AppleIcon } from "@/components/apple-icon";
-import { GithubIcon } from "@/components/github-icon";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { GoogleIcon } from "@/components/google-icon";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,17 @@ import {
 } from "@/components/ui/input-group";
 import { AuthDivider } from "@/components/auth-divider";
 import { FloatingPaths } from "@/components/floating-paths";
-import { AtSignIcon } from "lucide-react";
+import { AtSignIcon, LockIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export function AuthPage() {
 	const supabase = createClient();
+	const router = useRouter();
+
+	const [email, setEmail] = useState("");
+	const [password, setPassword] = useState("");
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const handleGoogleLogin = async () => {
 		await supabase.auth.signInWithOAuth({
@@ -28,6 +34,30 @@ export function AuthPage() {
 				},
 			},
 		});
+	};
+
+	const handleEmailLogin = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!email || !password) {
+			setError("Please enter both email and password.");
+			return;
+		}
+
+		setLoading(true);
+		setError(null);
+
+		const { error: authError } = await supabase.auth.signInWithPassword({
+			email,
+			password,
+		});
+
+		if (authError) {
+			setError(authError.message);
+			setLoading(false);
+		} else {
+			router.push("/dashboard");
+			router.refresh();
+		}
 	};
 
 	return (
@@ -74,35 +104,47 @@ export function AuthPage() {
 							<GoogleIcon data-icon="inline-start" />
 							Continue with Google
 						</Button>
-						<Button className="w-full">
-							<AppleIcon data-icon="inline-start" />
-							Continue with Apple
-						</Button>
-						<Button className="w-full">
-							<GithubIcon data-icon="inline-start" />
-							Continue with GitHub
-						</Button>
 					</div>
 
 					<AuthDivider>OR</AuthDivider>
 
-					<form className="space-y-2">
+					<form onSubmit={handleEmailLogin} className="space-y-2">
 						<p className="text-start text-muted-foreground text-xs">
-							Enter your email address to sign in or create an account
+							Enter your email address and password to sign in
 						</p>
+
+						{error && (
+							<p className="text-xs text-destructive text-start">{error}</p>
+						)}
+
 						<InputGroup>
 							<InputGroupInput
 								placeholder="your.email@example.com"
 								type="email"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+								required
 							/>
 							<InputGroupAddon align="inline-start">
-								<AtSignIcon
-								/>
+								<AtSignIcon />
 							</InputGroupAddon>
 						</InputGroup>
 
-						<Button className="w-full" type="button">
-							Continue With Email
+						<InputGroup>
+							<InputGroupInput
+								placeholder="••••••••"
+								type="password"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								required
+							/>
+							<InputGroupAddon align="inline-start">
+								<LockIcon className="h-4 w-4" />
+							</InputGroupAddon>
+						</InputGroup>
+
+						<Button className="w-full" type="submit" disabled={loading}>
+							{loading ? "Signing in..." : "Continue With Email"}
 						</Button>
 					</form>
 					<p className="mt-8 text-muted-foreground text-sm">
