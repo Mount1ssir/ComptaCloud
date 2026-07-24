@@ -23,15 +23,64 @@ export function DashboardHeader() {
   const supabase = createClient()
   const { resolvedTheme, setTheme } = useTheme()
   const [user, setUser] = React.useState<any>(null)
+  const [cabinetName, setCabinetName] = React.useState<string>("Cabinet Platform")
 
   React.useEffect(() => {
-    const getUser = async () => {
+    const resolveCabinetName = async () => {
+      let resolvedName: string | null = null
+
+      // 1. Try subdomain resolution from window.location.hostname
+      if (typeof window !== "undefined") {
+        const hostname = window.location.hostname
+        const parts = hostname.split(".")
+        
+        // E.g. "cabinet1.localhost" -> parts = ["cabinet1", "localhost"]
+        if (parts.length > 1 && parts[0] !== "localhost" && parts[0] !== "www" && parts[0] !== "app") {
+          const subdomain = parts[0]
+          const { data: tenantBySubdomain } = await supabase
+            .from("tenants")
+            .select("name")
+            .eq("subdomain", subdomain)
+            .maybeSingle()
+
+          if (tenantBySubdomain?.name) {
+            resolvedName = tenantBySubdomain.name
+          }
+        }
+      }
+
+      // 2. Fetch authenticated user profile and resolve tenant if no name from subdomain
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUser(user)
+
+        if (!resolvedName) {
+          const { data: userProfile } = await supabase
+            .from("users")
+            .select("tenant_id")
+            .eq("id", user.id)
+            .maybeSingle()
+
+          if (userProfile?.tenant_id) {
+            const { data: tenantById } = await supabase
+              .from("tenants")
+              .select("name")
+              .eq("id", userProfile.tenant_id)
+              .maybeSingle()
+
+            if (tenantById?.name) {
+              resolvedName = tenantById.name
+            }
+          }
+        }
+      }
+
+      if (resolvedName) {
+        setCabinetName(resolvedName)
       }
     }
-    getUser()
+
+    resolveCabinetName()
   }, [supabase])
 
   const handleLogout = async () => {
@@ -50,10 +99,10 @@ export function DashboardHeader() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background h-16">
       <div className="flex h-16 items-center justify-between px-6">
-        {/* Left Side: Logo */}
+        {/* Left Side: Logo / Cabinet Name */}
         <div className="flex items-center">
           <span className="text-xl font-bold tracking-tight text-foreground select-none">
-            Cabinet Platform
+            {cabinetName}
           </span>
         </div>
 

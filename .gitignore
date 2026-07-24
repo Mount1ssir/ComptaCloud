@@ -35,3 +35,7 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only scripts
+/scripts/local-only/
+
