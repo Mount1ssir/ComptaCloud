@@ -98,6 +98,12 @@ export async function proxy(request: NextRequest) {
 
   const { role } = profile
 
+  const isAcceptInviteRoute = pathname.startsWith('/accept-invite')
+
+  if (isAcceptInviteRoute) {
+    return response
+  }
+
   // 3. Route protection and redirection rules
   if (role === 'super_admin') {
     // super_admin goes to /super-admin
