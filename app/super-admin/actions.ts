@@ -1,14 +1,22 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
 
 export async function createTenantAction(prevState: any, formData: FormData) {
   const name = formData.get("name")?.toString().trim()
   const subdomain = formData.get("subdomain")?.toString().trim().toLowerCase()
+  const adminEmail = formData.get("admin_email")?.toString().trim().toLowerCase()
 
-  if (!name || !subdomain) {
-    return { success: false, error: "Le nom et le sous-domaine sont requis." }
+  if (!name || !subdomain || !adminEmail) {
+    return { success: false, error: "Le nom, le sous-domaine et l'e-mail de l'administrateur sont requis." }
+  }
+
+  // Basic email format check
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(adminEmail)) {
+    return { success: false, error: "Adresse e-mail de l'administrateur invalide." }
   }
 
   // Subdomain regex validation: 3 to 63 lowercase alphanumeric characters and hyphens
@@ -28,8 +36,8 @@ export async function createTenantAction(prevState: any, formData: FormData) {
     return { success: false, error: "Utilisateur non authentifié." }
   }
 
-  // Call atomic PostgreSQL RPC function
-  const { data, error } = await supabase.rpc("create_tenant_with_subscription", {
+  // Call atomic PostgreSQL RPC function (creates tenant with status = 'pending')
+  const { data: rpcRes, error } = await supabase.rpc("create_tenant_with_subscription", {
     p_name: name,
     p_subdomain: subdomain,
     p_admin_id: user.id
@@ -48,6 +56,38 @@ export async function createTenantAction(prevState: any, formData: FormData) {
     return { success: false, error: error.message || "Erreur lors de la création du cabinet." }
   }
 
+  const tenantId = (rpcRes as { tenant_id: string })?.tenant_id
+
+  // Service-role admin client created strictly for sending the invite
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+
+  // Send invite email to the new cabinet_admin
+  const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    adminEmail,
+    {
+      redirectTo: `${siteUrl}/accept-invite`,
+      data: {
+        role: "cabinet_admin",
+        tenant_id: tenantId
+      }
+    }
+  )
+
+  if (inviteError) {
+    console.error("createTenantAction invite error:", inviteError)
+    // Non-fatal for tenant creation, but inform super_admin
+    return {
+      success: true,
+      error: `Cabinet créé (en attente), mais l'envoi de l'e-mail a échoué: ${inviteError.message}`
+    }
+  }
+
   revalidatePath("/super-admin/tenants")
   revalidatePath("/super-admin")
   revalidatePath("/super-admin/logs")
@@ -63,29 +103,18 @@ export async function updateTenantStatusAction(tenantId: string, tenantName: str
     return { success: false, error: "Utilisateur non authentifié." }
   }
 
-  // Explicit defense-in-depth role check: verify caller is super_admin
-  const { data: userProfile } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle()
-
-  if (!userProfile || userProfile.role !== "super_admin") {
-    return { success: false, error: "You are not authorized to perform this action." }
-  }
-
-  // Update tenant status & check returned affected rows
-  const { data: updatedTenants, error: updateError } = await supabase
-    .from("tenants")
-    .update({ status })
-    .eq("id", tenantId)
-    .select()
+  // Update tenant status via SECURITY DEFINER RPC with internal authorization check (super_admin or tenants:manage)
+  // OLD CHECK: if (!userProfile || userProfile.role !== "super_admin") ... await supabase.from("tenants").update({ status })
+  const { data: updateSuccess, error: updateError } = await supabase.rpc("update_tenant_status", {
+    p_tenant_id: tenantId,
+    p_status: status
+  })
 
   if (updateError) {
-    return { success: false, error: updateError.message }
+    return { success: false, error: updateError.message === "not_authorized" ? "You are not authorized to perform this action." : updateError.message }
   }
 
-  if (!updatedTenants || updatedTenants.length === 0) {
+  if (!updateSuccess) {
     return { success: false, error: "Update failed or not authorized." }
   }
 
@@ -120,14 +149,11 @@ export async function updateSubscriptionAction(
     return { success: false, error: "Utilisateur non authentifié." }
   }
 
-  // Explicit defense-in-depth role check: verify caller is super_admin
-  const { data: userProfile } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle()
+  // Defense-in-depth: Verify calling user has 'tenants:manage' permission (or super_admin bypass)
+  // OLD CHECK: if (!userProfile || userProfile.role !== "super_admin")
+  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "tenants:manage" })
 
-  if (!userProfile || userProfile.role !== "super_admin") {
+  if (!isAuthorized) {
     return { success: false, error: "You are not authorized to perform this action." }
   }
 

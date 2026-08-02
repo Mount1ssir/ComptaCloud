@@ -18,6 +18,7 @@ export function AddTenantDialog() {
   const [open, setOpen] = React.useState(false)
   const [name, setName] = React.useState("")
   const [subdomain, setSubdomain] = React.useState("")
+  const [adminEmail, setAdminEmail] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
 
@@ -37,12 +38,18 @@ export function AddTenantDialog() {
       return;
     }
 
+    if (!adminEmail.trim()) {
+      setError("L'adresse e-mail de l'administrateur est requise.")
+      return;
+    }
+
     setLoading(true)
     setError(null)
 
     const formData = new FormData()
     formData.append("name", name)
     formData.append("subdomain", subdomain)
+    formData.append("admin_email", adminEmail.trim())
 
     const res = await createTenantAction(null, formData)
     setLoading(false)
@@ -50,6 +57,7 @@ export function AddTenantDialog() {
     if (res.success) {
       setName("")
       setSubdomain("")
+      setAdminEmail("")
       setOpen(false)
     } else {
       setError(res.error || "Une erreur s'est produite lors de la création du cabinet.")
@@ -68,7 +76,7 @@ export function AddTenantDialog() {
         <DialogHeader>
           <DialogTitle>Créer un nouveau cabinet</DialogTitle>
           <DialogDescription>
-            Saisissez le nom du cabinet et son sous-domaine unique pour l'ajouter à la plateforme.
+            Saisissez le nom du cabinet, son sous-domaine unique et l'e-mail de son administrateur.
           </DialogDescription>
         </DialogHeader>
 
@@ -105,6 +113,23 @@ export function AddTenantDialog() {
             </div>
             <p className="text-[11px] text-muted-foreground">
               Minuscules, chiffres et tirets uniquement (3 à 63 caractères).
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">E-mail de l'administrateur du cabinet *</label>
+            <Input
+              type="email"
+              placeholder="ex: admin@audit-finance.com"
+              value={adminEmail}
+              onChange={(e) => {
+                setAdminEmail(e.target.value)
+                setError(null)
+              }}
+              required
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Une invitation sera envoyée à cette adresse pour définir son mot de passe.
             </p>
           </div>
 

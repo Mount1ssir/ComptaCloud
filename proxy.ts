@@ -73,16 +73,19 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  // 2. Authenticated users: Fetch profile
-  const { data: profile, error } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
+  const isAcceptInviteRoute = pathname.startsWith('/accept-invite')
 
-  // Fallback: If profile fetch fails or profile doesn't exist
-  if (error || !profile) {
-    console.error('Profile not found or query error for authenticated user:', error || 'No profile row')
+  if (isAcceptInviteRoute) {
+    return response
+  }
+
+  // 2. Authenticated users: Check if user has a platform management role via is_platform_role() RPC
+  // OLD CHECK: const { data: profile, error } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
+  const { data: isPlatformRole, error } = await supabase.rpc('is_platform_role')
+
+  // Fallback: If profile/role check fails
+  if (error || isPlatformRole === null || isPlatformRole === undefined) {
+    console.error('Role check error for authenticated user:', error || 'RPC returned null/undefined')
     if (isSuperAdminRoute || isDashboardRoute) {
       // Clear cookies by setting expired cookies on redirect response
       const redirectResponse = NextResponse.redirect(new URL('/', request.url))
@@ -96,23 +99,16 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  const { role } = profile
-
-  const isAcceptInviteRoute = pathname.startsWith('/accept-invite')
-
-  if (isAcceptInviteRoute) {
-    return response
-  }
-
   // 3. Route protection and redirection rules
-  if (role === 'super_admin') {
-    // super_admin goes to /super-admin
+  // OLD CHECK: if (role === 'super_admin')
+  if (isPlatformRole) {
+    // Platform management roles (e.g. super_admin) go to /super-admin
     if (isDashboardRoute || isHomeRoute) {
       url.pathname = '/super-admin'
       return redirectWithCookies(url)
     }
   } else {
-    // cabinet_admin, accountant, client go to /dashboard
+    // Tenant roles (cabinet_admin, accountant, client) go to /dashboard
     if (isSuperAdminRoute || isHomeRoute) {
       url.pathname = '/dashboard'
       return redirectWithCookies(url)

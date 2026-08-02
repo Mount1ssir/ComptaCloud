@@ -9,14 +9,18 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/auth", request.url))
   }
 
-  // Defense-in-depth: Verify caller is cabinet_admin
+  // Fetch calling user profile to get tenant_id for OAuth state parameter
   const { data: profile } = await supabase
     .from("users")
-    .select("role, tenant_id")
+    .select("tenant_id")
     .eq("id", user.id)
     .maybeSingle()
 
-  if (!profile || profile.role !== "cabinet_admin" || !profile.tenant_id) {
+  // Defense-in-depth: Verify calling user has 'drive:connect' permission (or super_admin bypass)
+  // OLD CHECK: if (!profile || profile.role !== "cabinet_admin" || !profile.tenant_id)
+  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "drive:connect" })
+
+  if (!profile || !profile.tenant_id || !isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
   }
 

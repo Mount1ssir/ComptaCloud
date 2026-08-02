@@ -21,9 +21,10 @@ export default async function StorageSettingsPage({ searchParams }: StorageSetti
   }
 
   // Fetch user profile & tenant info
+  // OLD CHECK: .select("role, tenant_id")
   const { data: profile } = await supabase
     .from("users")
-    .select("role, tenant_id")
+    .select("tenant_id, role_id, roles(name)")
     .eq("id", user.id)
     .maybeSingle()
 
@@ -31,7 +32,11 @@ export default async function StorageSettingsPage({ searchParams }: StorageSetti
     redirect("/dashboard")
   }
 
-  const isCabinetAdmin = profile.role === "cabinet_admin"
+  const rolesData = profile.roles as unknown
+  const roleName = Array.isArray(rolesData)
+    ? (rolesData[0] as { name: string } | undefined)?.name || null
+    : (rolesData as { name: string } | null)?.name || null
+  const isCabinetAdmin = roleName === "cabinet_admin"
 
   // Fetch tenant drive connection details (RLS tenant_isolation_tenants_select isolates to user's tenant)
   const { data: tenant } = await supabase
