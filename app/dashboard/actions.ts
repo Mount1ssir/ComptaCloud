@@ -149,9 +149,8 @@ export async function disconnectDriveAction() {
     .eq("id", user.id)
     .maybeSingle()
 
-  // Defense-in-depth: Verify calling user has 'drive:disconnect' permission (or super_admin bypass)
-  // OLD CHECK: if (!callerProfile || callerProfile.role !== "cabinet_admin" || !callerProfile.tenant_id)
-  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "drive:disconnect" })
+  // Defense-in-depth: Verify calling user has 'drive:disconnect' permission AND plan authorization (or super_admin bypass)
+  const { data: isAuthorized } = await supabase.rpc("can_perform_with_plan", { p_perm_key: "drive:disconnect" })
 
   if (!callerProfile || !callerProfile.tenant_id || !isAuthorized) {
     return { success: false, error: "Vous n'êtes pas autorisé à effectuer cette action." }

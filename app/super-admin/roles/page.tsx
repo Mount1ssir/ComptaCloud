@@ -116,15 +116,26 @@ export default async function SuperAdminRolesPage() {
                       </TableCell>
 
                       <TableCell>
-                        {r.is_system ? (
-                          <Badge variant="secondary" className="gap-1 font-sans">
-                            <Lock className="h-3 w-3" /> Système
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="gap-1 font-sans border-primary/40 text-primary">
-                            Sur mesure
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {r.is_platform_role ? (
+                            <Badge variant="outline" className="gap-1 font-sans bg-purple-500/10 text-purple-600 border-purple-500/30">
+                              Plateforme
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="gap-1 font-sans bg-blue-500/10 text-blue-600 border-blue-500/30">
+                              Cabinet
+                            </Badge>
+                          )}
+                          {r.is_system ? (
+                            <Badge variant="secondary" className="gap-1 font-sans">
+                              <Lock className="h-3 w-3" /> Système
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="gap-1 font-sans border-primary/40 text-primary">
+                              Sur mesure
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
 
                       <TableCell>

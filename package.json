@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "permissions:generate": "node scripts/local-only/generate_permissions_reference.js",
+    "permissions:verify": "node scripts/local-only/verify_permissions_drift.js"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
