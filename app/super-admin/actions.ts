@@ -157,10 +157,21 @@ export async function updateSubscriptionAction(
     return { success: false, error: "You are not authorized to perform this action." }
   }
 
-  // Update subscription plan & status and check returned affected rows
+  // Resolve plan_id matching the plan slug
+  const { data: planRow } = await supabase
+    .from("plans")
+    .select("id")
+    .eq("slug", plan.toLowerCase().trim())
+    .maybeSingle()
+
+  // Update subscription plan_legacy, plan_id, & status and check returned affected rows
   const { data: updatedSubscriptions, error: updateError } = await supabase
     .from("subscriptions")
-    .update({ plan, status })
+    .update({
+      plan_legacy: plan,
+      plan_id: planRow?.id || null,
+      status
+    })
     .eq("id", subscriptionId)
     .select()
 

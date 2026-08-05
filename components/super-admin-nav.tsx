@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Building2, History, ShieldCheck } from "lucide-react"
+import { LayoutDashboard, Building2, History, ShieldCheck, Package } from "lucide-react"
 
 export function SuperAdminNav() {
   const pathname = usePathname()
@@ -19,6 +19,12 @@ export function SuperAdminNav() {
       href: "/super-admin/tenants",
       icon: Building2,
       active: pathname === "/super-admin/tenants",
+    },
+    {
+      label: "Forfaits & Abonnements",
+      href: "/super-admin/plans",
+      icon: Package,
+      active: pathname.startsWith("/super-admin/plans"),
     },
     {
       label: "Rôles & Permissions",

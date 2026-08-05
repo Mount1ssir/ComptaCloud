@@ -29,7 +29,8 @@ export async function activateTenantAction() {
     : (rolesData as { name: string } | null)?.name || null
 
   if (roleName !== "cabinet_admin") {
-    return { success: false, error: "Seul l'administrateur du cabinet peut activer le cabinet." }
+    // Non-admin staff (accountants, clients) joining an active cabinet do not perform tenant activation
+    return { success: true, activated: false }
   }
 
   // 3. Service-role admin client created strictly to bypass direct table UPDATE restriction on tenants

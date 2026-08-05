@@ -53,6 +53,22 @@ export async function inviteStaffAction(formData: FormData) {
     return { success: false, error: "Aucun cabinet associé à votre compte." }
   }
 
+  // Check plan quota limits for accountant invitations (Fail-Closed)
+  if (role === "accountant") {
+    const { data: limitResult, error: limitError } = await supabase.rpc("check_plan_limit", {
+      p_limit_key: "max_accountants"
+    })
+
+    const limitData = limitResult as { allowed?: boolean; message?: string } | null
+
+    if (limitError || !limitData || limitData.allowed === false) {
+      return {
+        success: false,
+        error: limitData?.message || limitError?.message || "Limite de comptables atteinte pour votre forfait."
+      }
+    }
+  }
+
   // Service-role admin client created strictly for the single inviteUserByEmail call
   const supabaseAdmin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

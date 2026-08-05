@@ -31,6 +31,12 @@ export default async function TenantsPage() {
     .select("*")
     .order("created_at", { ascending: false })
 
+  // 3. Fetch live plans catalog
+  const { data: plansCatalog } = await supabase
+    .from("plans")
+    .select("id, name, slug, tier_rank, is_active")
+    .order("tier_rank", { ascending: true })
+
   if (tenantsError) {
     console.error("Error fetching tenants:", tenantsError)
   }
@@ -117,9 +123,23 @@ export default async function TenantsPage() {
                       </TableCell>
 
                       <TableCell>
-                        <Badge variant="outline" className="capitalize text-[11px]">
-                          {sub?.plan || "N/A"}
-                        </Badge>
+                        {(() => {
+                          const planRow = (plansCatalog || []).find((p) => p.id === sub?.plan_id)
+                          const planDisplayName = planRow
+                            ? `${planRow.name}${!planRow.is_active ? " (Archivé)" : ""}`
+                            : sub?.plan_id
+                            ? "Plan inconnu"
+                            : "Non configuré"
+
+                          return (
+                            <Badge
+                              variant={planRow ? "outline" : "destructive"}
+                              className="capitalize text-[11px]"
+                            >
+                              {planDisplayName}
+                            </Badge>
+                          )
+                        })()}
                       </TableCell>
 
                       <TableCell>
@@ -143,7 +163,7 @@ export default async function TenantsPage() {
 
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-3">
-                          <SubscriptionPlanControl tenant={tenant} subscription={sub} />
+                          <SubscriptionPlanControl tenant={tenant} subscription={sub} plansCatalog={plansCatalog || []} />
                           <TenantStatusToggle tenant={tenant} />
                         </div>
                       </TableCell>
