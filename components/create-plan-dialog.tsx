@@ -38,8 +38,8 @@ export function CreatePlanDialog({ planPermissionsCatalog }: CreatePlanDialogPro
   const [currency, setCurrency] = useState("MAD")
   const [tierRank, setTierRank] = useState<number>(25)
   const [isActive, setIsActive] = useState(true)
+  const [isRecommended, setIsRecommended] = useState(false)
   const [maxAccountants, setMaxAccountants] = useState<number>(5)
-  const [maxStorageGb, setMaxStorageGb] = useState<number>(20)
   const [selectedPermKeys, setSelectedPermKeys] = useState<string[]>(["drive:connect", "drive:disconnect"])
 
   const [error, setError] = useState<string | null>(null)
@@ -71,9 +71,10 @@ export function CreatePlanDialog({ planPermissionsCatalog }: CreatePlanDialogPro
         currency,
         tier_rank: Number(tierRank),
         is_active: isActive,
+        is_recommended: isRecommended,
         permission_keys: selectedPermKeys,
         max_accountants: Number(maxAccountants),
-        max_storage_gb: Number(maxStorageGb)
+        max_storage_gb: -1
       })
 
       if (!res.success) {
@@ -85,6 +86,7 @@ export function CreatePlanDialog({ planPermissionsCatalog }: CreatePlanDialogPro
         setDescription("")
         setPriceMonthly(29)
         setTierRank(25)
+        setIsRecommended(false)
         setSelectedPermKeys(["drive:connect", "drive:disconnect"])
       }
     })
@@ -206,35 +208,33 @@ export function CreatePlanDialog({ planPermissionsCatalog }: CreatePlanDialogPro
             </div>
           </div>
 
+          <div className="flex items-center gap-2 pt-1">
+            <Checkbox
+              id="create-recommended"
+              checked={isRecommended}
+              onCheckedChange={(val) => setIsRecommended(!!val)}
+              disabled={isPending}
+            />
+            <label htmlFor="create-recommended" className="text-xs font-semibold text-foreground cursor-pointer">
+              Marquer comme recommandé (Badge Recommandé)
+            </label>
+          </div>
+
           {/* Quotas & Limits */}
           <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Quotas & Limites de Forfait
+              Quotas & Limites d'Équipe
             </h4>
-            <div className="grid grid-cols-2 gap-4">
+            <div>
               <div className="space-y-1.5">
                 <label htmlFor="create-limit-acc" className="text-xs font-semibold text-foreground">
-                  Comptables max (-1 = illimité)
+                  Membres d'équipe max (-1 = illimité)
                 </label>
                 <Input
                   id="create-limit-acc"
                   type="number"
                   value={maxAccountants}
                   onChange={e => setMaxAccountants(parseInt(e.target.value, 10))}
-                  required
-                  disabled={isPending}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="create-limit-storage" className="text-xs font-semibold text-foreground">
-                  Stockage GB max (-1 = illimité)
-                </label>
-                <Input
-                  id="create-limit-storage"
-                  type="number"
-                  value={maxStorageGb}
-                  onChange={e => setMaxStorageGb(parseInt(e.target.value, 10))}
                   required
                   disabled={isPending}
                 />

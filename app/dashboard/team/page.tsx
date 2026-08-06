@@ -65,6 +65,15 @@ export default async function TeamPage() {
     console.error("Failed to query auth users status:", err)
   }
 
+  // Query dynamic cabinet-scoped roles (is_platform_role = false)
+  const { data: availableRolesData } = await supabase
+    .from("roles")
+    .select("id, name")
+    .eq("is_platform_role", false)
+    .order("name", { ascending: true })
+
+  const availableRoles = (availableRolesData || []).map(r => ({ id: r.id, name: r.name }))
+
   return (
     <main className="flex-1 space-y-6 p-6 max-w-7xl mx-auto w-full">
         {/* Page Title & Actions */}
@@ -75,11 +84,11 @@ export default async function TeamPage() {
               Gestion de l'équipe
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Gérez les membres de votre cabinet et leurs titres d'affichage.
+              Gérez les membres de votre cabinet et leurs rôles.
             </p>
           </div>
 
-          {isCabinetAdmin && <InviteStaffDialog />}
+          {isCabinetAdmin && <InviteStaffDialog availableRoles={availableRoles} />}
         </div>
 
         {/* Team Members Table Card */}

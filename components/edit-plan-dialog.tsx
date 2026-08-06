@@ -35,6 +35,7 @@ interface EditPlanDialogProps {
     currency?: string
     tier_rank: number
     is_active: boolean
+    is_recommended?: boolean
   }
   assignedPermissionKeys: string[]
   assignedLimits: { max_accountants: number; max_storage_gb: number }
@@ -57,8 +58,8 @@ export function EditPlanDialog({
   const [currency, setCurrency] = useState(plan.currency || "MAD")
   const [tierRank, setTierRank] = useState<number>(plan.tier_rank)
   const [isActive, setIsActive] = useState(plan.is_active)
+  const [isRecommended, setIsRecommended] = useState(!!plan.is_recommended)
   const [maxAccountants, setMaxAccountants] = useState<number>(assignedLimits.max_accountants)
-  const [maxStorageGb, setMaxStorageGb] = useState<number>(assignedLimits.max_storage_gb)
   const [selectedPermKeys, setSelectedPermKeys] = useState<string[]>(assignedPermissionKeys)
 
   const [error, setError] = useState<string | null>(null)
@@ -72,8 +73,8 @@ export function EditPlanDialog({
     setCurrency(plan.currency || "MAD")
     setTierRank(plan.tier_rank)
     setIsActive(plan.is_active)
+    setIsRecommended(!!plan.is_recommended)
     setMaxAccountants(assignedLimits.max_accountants)
-    setMaxStorageGb(assignedLimits.max_storage_gb)
     setSelectedPermKeys(assignedPermissionKeys)
   }, [plan, assignedPermissionKeys, assignedLimits, open])
 
@@ -97,9 +98,10 @@ export function EditPlanDialog({
         currency,
         tier_rank: Number(tierRank),
         is_active: isActive,
+        is_recommended: isRecommended,
         permission_keys: selectedPermKeys,
         max_accountants: Number(maxAccountants),
-        max_storage_gb: Number(maxStorageGb)
+        max_storage_gb: -1
       })
 
       if (!res.success) {
@@ -232,35 +234,33 @@ export function EditPlanDialog({
             </div>
           </div>
 
+          <div className="flex items-center gap-2 pt-1">
+            <Checkbox
+              id={`edit-recommended-${plan.id}`}
+              checked={isRecommended}
+              onCheckedChange={(val) => setIsRecommended(!!val)}
+              disabled={isPending}
+            />
+            <label htmlFor={`edit-recommended-${plan.id}`} className="text-xs font-semibold text-foreground cursor-pointer">
+              Marquer comme recommandé (Badge Recommandé)
+            </label>
+          </div>
+
           {/* Quotas & Limits */}
           <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Quotas & Limites de Forfait
+              Quotas & Limites d'Équipe
             </h4>
-            <div className="grid grid-cols-2 gap-4">
+            <div>
               <div className="space-y-1.5">
                 <label htmlFor={`edit-acc-${plan.id}`} className="text-xs font-semibold text-foreground">
-                  Comptables max (-1 = illimité)
+                  Membres d'équipe max (-1 = illimité)
                 </label>
                 <Input
                   id={`edit-acc-${plan.id}`}
                   type="number"
                   value={maxAccountants}
                   onChange={e => setMaxAccountants(parseInt(e.target.value, 10))}
-                  required
-                  disabled={isPending}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor={`edit-storage-${plan.id}`} className="text-xs font-semibold text-foreground">
-                  Stockage GB max (-1 = illimité)
-                </label>
-                <Input
-                  id={`edit-storage-${plan.id}`}
-                  type="number"
-                  value={maxStorageGb}
-                  onChange={e => setMaxStorageGb(parseInt(e.target.value, 10))}
                   required
                   disabled={isPending}
                 />

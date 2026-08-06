@@ -18,20 +18,26 @@ export async function inviteStaffAction(formData: FormData) {
     return { success: false, error: "Adresse e-mail invalide." }
   }
 
-  // Strict role validation: cabinet_admin can only invite 'accountant' or 'cabinet_admin'
-  if (role !== "accountant" && role !== "cabinet_admin") {
-    return {
-      success: false,
-      error: "Seuls les rôles 'accountant' et 'cabinet_admin' peuvent être invités par un administrateur."
-    }
-  }
-
   // Authenticate calling user
   const supabase = await createServerSupabaseClient()
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
   if (userError || !user) {
     return { success: false, error: "Utilisateur non authentifié." }
+  }
+
+  // Strict role validation: Submitted role MUST exist and MUST be a cabinet-scoped role (is_platform_role = false)
+  const { data: roleRow, error: roleError } = await supabase
+    .from("roles")
+    .select("id, name, is_platform_role")
+    .eq("name", role)
+    .maybeSingle()
+
+  if (roleError || !roleRow || roleRow.is_platform_role === true) {
+    return {
+      success: false,
+      error: "Rôle invalide ou non autorisé pour les membres de cabinet."
+    }
   }
 
   // Fetch calling user profile to get tenant_id for invited user metadata
@@ -42,7 +48,6 @@ export async function inviteStaffAction(formData: FormData) {
     .maybeSingle()
 
   // Defense-in-depth: Verify calling user has 'team:invite' permission (or super_admin bypass)
-  // OLD CHECK: if (profileError || !callerProfile || callerProfile.role !== "cabinet_admin")
   const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "team:invite" })
 
   if (profileError || !callerProfile || !isAuthorized) {
@@ -53,19 +58,17 @@ export async function inviteStaffAction(formData: FormData) {
     return { success: false, error: "Aucun cabinet associé à votre compte." }
   }
 
-  // Check plan quota limits for accountant invitations (Fail-Closed)
-  if (role === "accountant") {
-    const { data: limitResult, error: limitError } = await supabase.rpc("check_plan_limit", {
-      p_limit_key: "max_accountants"
-    })
+  // Check plan quota limits for team member invitations (Fail-Closed, runs for EVERY role)
+  const { data: limitResult, error: limitError } = await supabase.rpc("check_plan_limit", {
+    p_limit_key: "max_accountants"
+  })
 
-    const limitData = limitResult as { allowed?: boolean; message?: string } | null
+  const limitData = limitResult as { allowed?: boolean; message?: string } | null
 
-    if (limitError || !limitData || limitData.allowed === false) {
-      return {
-        success: false,
-        error: limitData?.message || limitError?.message || "Limite de comptables atteinte pour votre forfait."
-      }
+  if (limitError || !limitData || limitData.allowed === false) {
+    return {
+      success: false,
+      error: limitData?.message || limitError?.message || "Limite de membres d'équipe atteinte pour votre forfait."
     }
   }
 

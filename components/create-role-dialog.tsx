@@ -18,6 +18,7 @@ import { PlusCircle, Loader2, AlertCircle } from "lucide-react"
 export function CreateRoleDialog() {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
+  const [isPlatformRole, setIsPlatformRole] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -31,12 +32,13 @@ export function CreateRoleDialog() {
     }
 
     startTransition(async () => {
-      const result = await createRoleAction(name)
+      const result = await createRoleAction(name, isPlatformRole)
 
       if (!result.success) {
         setError(result.error || "Échec de la création du rôle.")
       } else {
         setName("")
+        setIsPlatformRole(false)
         setOpen(false)
       }
     })
@@ -55,7 +57,7 @@ export function CreateRoleDialog() {
         <DialogHeader>
           <DialogTitle>Créer un nouveau rôle</DialogTitle>
           <DialogDescription>
-            Créez un rôle personnalisé. Vous pourrez ensuite lui attribuer des permissions spécifiques.
+            Créez un rôle personnalisé Cabinet ou Plateforme. Vous pourrez ensuite lui attribuer des permissions spécifiques.
           </DialogDescription>
         </DialogHeader>
 
@@ -80,9 +82,25 @@ export function CreateRoleDialog() {
               required
               disabled={isPending}
             />
-            <p className="text-xs text-muted-foreground">
-              Les espaces seront automatiquement convertis en tirets bas (_).
-            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="role-type" className="text-sm font-medium">
+              Portée / Type de rôle
+            </label>
+            <select
+              id="role-type"
+              value={isPlatformRole ? "platform" : "cabinet"}
+              onChange={(e) => setIsPlatformRole(e.target.value === "platform")}
+              disabled={isPending}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-ring"
+            >
+              <option value="cabinet">Cabinet (Destiné aux membres d'équipe de cabinet)</option>
+              <option value="platform">Plateforme (Super Admin / Administration Générale)</option>
+            </select>
+          <p className="text-xs text-muted-foreground">
+            Les espaces seront automatiquement convertis en tirets bas (_).
+          </p>
           </div>
 
           <DialogFooter className="pt-2">

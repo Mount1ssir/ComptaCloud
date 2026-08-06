@@ -29,7 +29,7 @@ async function verifySuperAdmin() {
 /**
  * Creates a new custom role (is_system = false, is_platform_role = false, tenant_id = NULL).
  */
-export async function createRoleAction(name: string) {
+export async function createRoleAction(name: string, isPlatformRole: boolean = false) {
   const { user, error: authErr } = await verifySuperAdmin()
   if (authErr || !user) {
     return { success: false, error: authErr }
@@ -62,7 +62,7 @@ export async function createRoleAction(name: string) {
     .insert({
       name: trimmedName,
       is_system: false,
-      is_platform_role: false,
+      is_platform_role: isPlatformRole,
       tenant_id: null,
     })
     .select()

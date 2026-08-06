@@ -12,9 +12,10 @@ export interface PlanFormData {
   currency?: string
   tier_rank: number
   is_active: boolean
+  is_recommended?: boolean
   permission_keys: string[]
   max_accountants: number
-  max_storage_gb: number
+  max_storage_gb?: number
 }
 
 export async function createPlanAction(data: PlanFormData) {
@@ -68,7 +69,8 @@ export async function createPlanAction(data: PlanFormData) {
     p_is_active: data.is_active,
     p_permission_keys: data.permission_keys || [],
     p_max_accountants: data.max_accountants ?? 2,
-    p_max_storage_gb: data.max_storage_gb ?? 10
+    p_max_storage_gb: data.max_storage_gb ?? -1,
+    p_is_recommended: data.is_recommended ?? false
   })
 
   if (rpcErr) {
@@ -144,7 +146,8 @@ export async function updatePlanAction(planId: string, data: PlanFormData) {
     p_is_active: data.is_active,
     p_permission_keys: data.permission_keys || [],
     p_max_accountants: data.max_accountants ?? 2,
-    p_max_storage_gb: data.max_storage_gb ?? 10
+    p_max_storage_gb: data.max_storage_gb ?? -1,
+    p_is_recommended: data.is_recommended ?? false
   })
 
   if (rpcErr) {

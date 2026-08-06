@@ -99,15 +99,41 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
+  const isSuspendedRoute = pathname.startsWith('/suspended')
+
   // 3. Route protection and redirection rules
-  // OLD CHECK: if (role === 'super_admin')
   if (isPlatformRole) {
-    // Platform management roles (e.g. super_admin) go to /super-admin
-    if (isDashboardRoute || isHomeRoute) {
+    // Platform management roles (e.g. super_admin) go to /super-admin and bypass tenant suspension
+    if (isDashboardRoute || isHomeRoute || isSuspendedRoute) {
       url.pathname = '/super-admin'
       return redirectWithCookies(url)
     }
   } else {
+    // Check if caller's tenant is suspended
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('tenant_id, tenants(status)')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const tenantData = userProfile?.tenants as unknown
+    const tenantStatus = Array.isArray(tenantData)
+      ? (tenantData[0] as { status: string } | undefined)?.status || null
+      : (tenantData as { status: string } | null)?.status || null
+
+    if (tenantStatus === 'suspended') {
+      if (!isSuspendedRoute) {
+        url.pathname = '/suspended'
+        return redirectWithCookies(url)
+      }
+      return response
+    }
+
+    if (isSuspendedRoute) {
+      url.pathname = '/dashboard'
+      return redirectWithCookies(url)
+    }
+
     // Tenant roles (cabinet_admin, accountant, client) go to /dashboard
     if (isSuperAdminRoute || isHomeRoute) {
       url.pathname = '/dashboard'

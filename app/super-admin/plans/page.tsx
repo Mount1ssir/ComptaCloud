@@ -28,7 +28,7 @@ export default async function SuperAdminPlansPage() {
   // 3. Query all plans ordered by tier_rank ASC
   const { data: plans } = await supabase
     .from("plans")
-    .select("id, name, slug, description, price_monthly, currency, tier_rank, is_active, created_at")
+    .select("id, name, slug, description, price_monthly, currency, tier_rank, is_active, is_recommended, created_at")
     .order("tier_rank", { ascending: true })
 
   // 4. Query scope = 'plan' permissions catalog
@@ -128,8 +128,8 @@ export default async function SuperAdminPlansPage() {
                     : "border-border"
                 }`}
               >
-                {/* Popular Tag for Pro Plan */}
-                {plan.slug === "pro" && (
+                {/* Recommandé Tag */}
+                {plan.is_recommended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-xs flex items-center gap-1">
                     <Sparkles className="h-3 w-3" /> Recommandé
                   </div>

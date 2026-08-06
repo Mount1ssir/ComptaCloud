@@ -22,11 +22,28 @@ import {
 } from "@/components/ui/select"
 import { UserPlus, Loader2 } from "lucide-react"
 
-export function InviteStaffDialog() {
+interface RoleOption {
+  id: string
+  name: string
+}
+
+interface InviteStaffDialogProps {
+  availableRoles?: RoleOption[]
+}
+
+export function InviteStaffDialog({ availableRoles = [] }: InviteStaffDialogProps) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [role, setRole] = useState<string>("accountant")
+  const [role, setRole] = useState<string>(availableRoles[0]?.name || "accountant")
   const [isPending, startTransition] = useTransition()
+
+  // Format display labels for system roles
+  function formatRoleLabel(name: string) {
+    if (name === "accountant") return "Comptable (Accountant)"
+    if (name === "cabinet_admin") return "Administrateur Cabinet (Cabinet Admin)"
+    if (name === "client") return "Client"
+    return name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+  }
 
   async function handleSubmit(formData: FormData) {
     setError(null)
@@ -92,8 +109,18 @@ export function InviteStaffDialog() {
                   <SelectValue placeholder="Sélectionnez un rôle" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="accountant">Comptable (Accountant)</SelectItem>
-                  <SelectItem value="cabinet_admin">Administrateur Cabinet (Cabinet Admin)</SelectItem>
+                  {availableRoles.length > 0 ? (
+                    availableRoles.map((r) => (
+                      <SelectItem key={r.id} value={r.name}>
+                        {formatRoleLabel(r.name)}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <>
+                      <SelectItem value="accountant">Comptable (Accountant)</SelectItem>
+                      <SelectItem value="cabinet_admin">Administrateur Cabinet (Cabinet Admin)</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
