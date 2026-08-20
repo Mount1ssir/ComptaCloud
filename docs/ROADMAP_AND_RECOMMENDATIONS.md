@@ -9,7 +9,6 @@
 
 ## Prioritized Feature & Hardening Backlog
 
----
 
 ### 1. Server-Signed Document Proxy Endpoint (Near-Term Security Hardening)
 
