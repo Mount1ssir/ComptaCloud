@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { KeyRound, Loader2, CheckCircle2, AlertCircle, UserCheck } from "lucide-react"
+import { activateTenantAction } from "./actions"
 
 export default function AcceptInvitePage() {
   const router = useRouter()
@@ -108,13 +109,21 @@ export default function AcceptInvitePage() {
       setError("Les mots de passe ne correspondent pas.")
       return
     }
-
     startTransition(async () => {
       const { error: updateErr } = await supabase.auth.updateUser({ password })
 
       if (updateErr) {
         setError(updateErr.message || "Impossible de mettre à jour le mot de passe.")
       } else {
+        // Transition tenant status from 'pending' -> 'active' if this is an invited cabinet_admin
+        const actRes = await activateTenantAction()
+
+        if (!actRes.success && actRes.error) {
+          console.error("activateTenantAction failed:", actRes.error)
+          setError(actRes.error)
+          return
+        }
+
         setSuccess(true)
         setTimeout(() => {
           router.push("/")

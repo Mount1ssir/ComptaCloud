@@ -34,14 +34,18 @@ export async function inviteStaffAction(formData: FormData) {
     return { success: false, error: "Utilisateur non authentifié." }
   }
 
-  // Defense-in-depth: Verify calling user has role 'cabinet_admin' and get their tenant_id
+  // Fetch calling user profile to get tenant_id for invited user metadata
   const { data: callerProfile, error: profileError } = await supabase
     .from("users")
-    .select("role, tenant_id")
+    .select("tenant_id")
     .eq("id", user.id)
     .maybeSingle()
 
-  if (profileError || !callerProfile || callerProfile.role !== "cabinet_admin") {
+  // Defense-in-depth: Verify calling user has 'team:invite' permission (or super_admin bypass)
+  // OLD CHECK: if (profileError || !callerProfile || callerProfile.role !== "cabinet_admin")
+  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "team:invite" })
+
+  if (profileError || !callerProfile || !isAuthorized) {
     return { success: false, error: "Vous n'êtes pas autorisé à effectuer cette action." }
   }
 
@@ -100,14 +104,11 @@ export async function updateTeamMemberTitleAction(targetUserId: string, title: s
     return { success: false, error: "Utilisateur non authentifié." }
   }
 
-  // Defense-in-depth: Verify calling user has role 'cabinet_admin'
-  const { data: callerProfile } = await supabase
-    .from("users")
-    .select("role, tenant_id")
-    .eq("id", user.id)
-    .maybeSingle()
+  // Defense-in-depth: Verify calling user has 'team:update_title' permission (or super_admin bypass)
+  // OLD CHECK: if (!callerProfile || callerProfile.role !== "cabinet_admin")
+  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "team:update_title" })
 
-  if (!callerProfile || callerProfile.role !== "cabinet_admin") {
+  if (!isAuthorized) {
     return { success: false, error: "Vous n'êtes pas autorisé à effectuer cette action." }
   }
 
@@ -141,14 +142,18 @@ export async function disconnectDriveAction() {
     return { success: false, error: "Utilisateur non authentifié." }
   }
 
-  // Defense-in-depth: Verify calling user has role 'cabinet_admin'
+  // Fetch calling user profile to get tenant_id for Drive disconnect query
   const { data: callerProfile } = await supabase
     .from("users")
-    .select("role, tenant_id")
+    .select("tenant_id")
     .eq("id", user.id)
     .maybeSingle()
 
-  if (!callerProfile || callerProfile.role !== "cabinet_admin" || !callerProfile.tenant_id) {
+  // Defense-in-depth: Verify calling user has 'drive:disconnect' permission (or super_admin bypass)
+  // OLD CHECK: if (!callerProfile || callerProfile.role !== "cabinet_admin" || !callerProfile.tenant_id)
+  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "drive:disconnect" })
+
+  if (!callerProfile || !callerProfile.tenant_id || !isAuthorized) {
     return { success: false, error: "Vous n'êtes pas autorisé à effectuer cette action." }
   }
 

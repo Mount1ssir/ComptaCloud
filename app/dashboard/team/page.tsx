@@ -24,9 +24,10 @@ export default async function TeamPage() {
   }
 
   // Fetch current user's profile
+  // OLD CHECK: .select("role, tenant_id")
   const { data: currentUserProfile } = await supabase
     .from("users")
-    .select("role, tenant_id")
+    .select("tenant_id, role_id, roles(name)")
     .eq("id", user.id)
     .maybeSingle()
 
@@ -34,12 +35,16 @@ export default async function TeamPage() {
     redirect("/dashboard")
   }
 
-  const isCabinetAdmin = currentUserProfile.role === "cabinet_admin"
+  const curRolesData = currentUserProfile.roles as unknown
+  const currentUserRoleName = Array.isArray(curRolesData)
+    ? (curRolesData[0] as { name: string } | undefined)?.name || null
+    : (curRolesData as { name: string } | null)?.name || null
+  const isCabinetAdmin = currentUserRoleName === "cabinet_admin"
 
   // Fetch team members from public.users (RLS isolates to caller's tenant)
   const { data: teamMembers, error: teamError } = await supabase
     .from("users")
-    .select("id, email, role, title, created_at")
+    .select("id, email, title, created_at, role_id, roles(name)")
     .order("created_at", { ascending: true })
 
   // Query auth.users server-side via admin API to resolve invite status (email_confirmed_at)
@@ -124,18 +129,24 @@ export default async function TeamPage() {
 
                       {/* Role Badge */}
                       <TableCell>
-                        {member.role === "cabinet_admin" ? (
-                          <Badge variant="default" className="gap-1 bg-indigo-600 hover:bg-indigo-700">
-                            <ShieldCheck className="h-3 w-3" />
-                            Admin Cabinet
-                          </Badge>
-                        ) : member.role === "accountant" ? (
-                          <Badge variant="secondary" className="gap-1">
-                            Comptable
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">{member.role}</Badge>
-                        )}
+                        {(() => {
+                          const mRolesData = member.roles as unknown
+                          const mRole = Array.isArray(mRolesData)
+                            ? (mRolesData[0] as { name: string } | undefined)?.name || null
+                            : (mRolesData as { name: string } | null)?.name || null
+                          return mRole === "cabinet_admin" ? (
+                            <Badge variant="default" className="gap-1 bg-indigo-600 hover:bg-indigo-700">
+                              <ShieldCheck className="h-3 w-3" />
+                              Admin Cabinet
+                            </Badge>
+                          ) : mRole === "accountant" ? (
+                            <Badge variant="secondary" className="gap-1">
+                              Comptable
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">{mRole || "Membre"}</Badge>
+                          )
+                        })()}
                       </TableCell>
 
                       {/* Title */}

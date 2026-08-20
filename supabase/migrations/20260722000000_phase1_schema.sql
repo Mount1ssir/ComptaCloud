@@ -1,14 +1,8 @@
--- Supabase Migration: Phase 1 Database Schema
--- Multi-Tenant Accounting SaaS
 
--- 1. Create Enums
 CREATE TYPE user_role AS ENUM ('super_admin', 'cabinet_admin', 'accountant', 'client');
 CREATE TYPE tenant_status AS ENUM ('active', 'suspended');
 CREATE TYPE subscription_status AS ENUM ('active', 'trial', 'suspended');
 
--- 2. Create Tables
-
--- tenants Table
 CREATE TABLE tenants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -17,7 +11,7 @@ CREATE TABLE tenants (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- subscriptions Table
+
 CREATE TABLE subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -26,7 +20,6 @@ CREATE TABLE subscriptions (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- users Table (maps to Supabase's auth.users)
 CREATE TABLE users (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL UNIQUE,
@@ -77,9 +70,7 @@ BEGIN
 END;
 $$;
 
--- 6. Create Row Level Security (RLS) Policies (Super Admin Bypass)
 
--- Tenants Policy
 CREATE POLICY super_admin_bypass_tenants ON tenants
     FOR ALL
     USING (is_super_admin())

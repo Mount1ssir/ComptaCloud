@@ -20,16 +20,26 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${siteUrl}/auth`)
   }
 
-  // Defense-in-depth: Verify caller is cabinet_admin
+  // Fetch calling user profile to get tenant_id for save_tenant_drive_token RPC
   const { data: profile } = await supabase
     .from("users")
-    .select("role, tenant_id")
+    .select("tenant_id")
     .eq("id", user.id)
     .maybeSingle()
 
-  if (!profile || profile.role !== "cabinet_admin" || !profile.tenant_id) {
+  // Defense-in-depth: Verify calling user has 'drive:connect' permission (or super_admin bypass)
+  // OLD CHECK: if (!profile || profile.role !== "cabinet_admin" || !profile.tenant_id)
+  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "drive:connect" })
+
+  if (!profile || !profile.tenant_id || !isAuthorized) {
     return NextResponse.redirect(`${redirectTarget}?status=error&message=unauthorized`)
   }
+
+  // TODO (Security Backlog): Pre-existing OAuth state parameter CSRF gap.
+  // The 'state' query param is set to tenant_id at connect-time (/api/drive/connect), but is not currently
+  // cross-checked against session state or a cryptographic anti-CSRF nonce at callback-time.
+  // Although token saving uses profile.tenant_id from the authenticated session (preventing cross-tenant token corruption),
+  // validating 'state' against an anti-CSRF nonce should be added in a future security hardening sprint.
 
   const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID!
   const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET!
