@@ -26,14 +26,14 @@ export async function inviteStaffAction(formData: FormData) {
     return { success: false, error: "Utilisateur non authentifié." }
   }
 
-  // Strict role validation: Submitted role MUST exist and MUST be a cabinet-scoped role (is_platform_role = false)
+  // Strict role validation: Submitted role MUST exist, MUST be a cabinet-scoped role (is_platform_role = false), and MUST NOT be 'client'
   const { data: roleRow, error: roleError } = await supabase
     .from("roles")
     .select("id, name, is_platform_role")
     .eq("name", role)
     .maybeSingle()
 
-  if (roleError || !roleRow || roleRow.is_platform_role === true) {
+  if (roleError || !roleRow || roleRow.is_platform_role === true || roleRow.name === "client") {
     return {
       success: false,
       error: "Rôle invalide ou non autorisé pour les membres de cabinet."
