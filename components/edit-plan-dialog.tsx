@@ -38,7 +38,7 @@ interface EditPlanDialogProps {
     is_recommended?: boolean
   }
   assignedPermissionKeys: string[]
-  assignedLimits: { max_accountants: number; max_storage_gb: number }
+  assignedLimits: { max_accountants: number; max_storage_gb: number; max_clients?: number }
   planPermissionsCatalog: PermissionItem[]
   activeSubscribersCount: number
 }
@@ -60,6 +60,7 @@ export function EditPlanDialog({
   const [isActive, setIsActive] = useState(plan.is_active)
   const [isRecommended, setIsRecommended] = useState(!!plan.is_recommended)
   const [maxAccountants, setMaxAccountants] = useState<number>(assignedLimits.max_accountants)
+  const [maxClients, setMaxClients] = useState<number>(assignedLimits.max_clients ?? 10)
   const [selectedPermKeys, setSelectedPermKeys] = useState<string[]>(assignedPermissionKeys)
 
   const [error, setError] = useState<string | null>(null)
@@ -75,6 +76,7 @@ export function EditPlanDialog({
     setIsActive(plan.is_active)
     setIsRecommended(!!plan.is_recommended)
     setMaxAccountants(assignedLimits.max_accountants)
+    setMaxClients(assignedLimits.max_clients ?? 10)
     setSelectedPermKeys(assignedPermissionKeys)
   }, [plan, assignedPermissionKeys, assignedLimits, open])
 
@@ -101,6 +103,7 @@ export function EditPlanDialog({
         is_recommended: isRecommended,
         permission_keys: selectedPermKeys,
         max_accountants: Number(maxAccountants),
+        max_clients: Number(maxClients),
         max_storage_gb: -1
       })
 
@@ -249,9 +252,9 @@ export function EditPlanDialog({
           {/* Quotas & Limits */}
           <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Quotas & Limites d'Équipe
+              Quotas & Limites d'Utilisation
             </h4>
-            <div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label htmlFor={`edit-acc-${plan.id}`} className="text-xs font-semibold text-foreground">
                   Membres d'équipe max (-1 = illimité)
@@ -261,6 +264,20 @@ export function EditPlanDialog({
                   type="number"
                   value={maxAccountants}
                   onChange={e => setMaxAccountants(parseInt(e.target.value, 10))}
+                  required
+                  disabled={isPending}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor={`edit-cli-${plan.id}`} className="text-xs font-semibold text-foreground">
+                  Clients max (-1 = illimité)
+                </label>
+                <Input
+                  id={`edit-cli-${plan.id}`}
+                  type="number"
+                  value={maxClients}
+                  onChange={e => setMaxClients(parseInt(e.target.value, 10))}
                   required
                   disabled={isPending}
                 />

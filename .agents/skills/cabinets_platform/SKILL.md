@@ -29,11 +29,13 @@ description: Comprehensive technical architecture, database schema, completed fe
    - `is_platform_role()`: Checks if caller holds a platform-level management role (`is_platform_role = true`).
    - `has_permission(perm_key TEXT)`: Evaluates role-based permissions (`role_permissions`).
    - `has_plan_permission(p_perm_key TEXT)`: Evaluates subscription plan authorization for `scope = 'plan'` permissions.
-   - `check_plan_limit(p_limit_key TEXT)`: Evaluates live tenant usage (e.g. `max_accountants` counting all tenant users `WHERE tenant_id = v_tenant_id`) against `plan_limits.limit_value`. Returns JSON payload `{ allowed, current_count, limit_value, remaining, message }`.
+   - `check_plan_limit(p_limit_key TEXT)`: Evaluates live tenant usage:
+     - `max_accountants`: Counts all users `WHERE tenant_id = v_tenant_id`.
+     - `max_clients`: Counts active clients `WHERE tenant_id = v_tenant_id AND status = 'active'`. (Archived clients do NOT count against quota).
    - `can_perform_with_plan(p_perm_key TEXT)`: Scope-aware RPC function:
      - `scope IN ('cabinet', 'platform')` $\rightarrow$ Evaluates **role-only** via `has_permission()`.
      - `scope = 'plan'` $\rightarrow$ Evaluates **dual-gated** via `has_permission() AND has_plan_permission()`.
-   - `upsert_plan_details(...)`: Security DEFINER RPC for creating/updating plans and atomic permission assignment.
+   - `upsert_plan_details(...)`: SECURITY DEFINER RPC for creating/updating plans, atomic permission assignment, and limit seeding (`max_accountants`, `max_storage_gb`, `max_clients`).
 4. **Permissions Generator & Drift Protection**:
    - Generator: `scripts/local-only/generate_permissions_reference.js` writing to `lib/permissions.gen.ts`.
    - Drift Check: `scripts/local-only/verify_permissions_drift.js` (`npm run permissions:verify`).
@@ -42,50 +44,44 @@ description: Comprehensive technical architecture, database schema, completed fe
 
 ## 2. Completed Phases & Feature Index
 
-### Phase A – F: Core Refactoring & Dynamic Permissions
-- System roles seeded (`super_admin`, `cabinet_admin`, `accountant`, `client`).
+### Phase A – G: Core Refactoring & Plan Cutover
 - Dynamic RBAC schema deployed (`roles`, `permissions`, `role_permissions`, `users.role_id`).
-- All server actions, API routes, and RLS policies updated to inspect dynamic permissions and `is_platform_role()`.
-
-### Phase G: Plan Foreign Key Cutover & Legacy Column Rename
-- Migration [`20260803050000_phase_g_rename_subscriptions_plan_column.sql`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/supabase/migrations/20260803050000_phase_g_rename_subscriptions_plan_column.sql) renamed `subscriptions.plan` to `subscriptions.plan_legacy`.
-- `subscriptions.plan_id` (FK to `plans.id`) is 100% authoritative for plan details and features.
-- All write RPCs (`create_tenant_with_admin_invite`, `create_tenant_with_subscription`, `updateSubscriptionAction`) maintain `plan_id` as primary while writing `plan_legacy` for fallback.
-- Read queries join through `subscriptions.plan_id` to `plans`. Added fail-closed recovery UI badge `"Plan non configuré (plan_id manquant)"` with inline Super Admin plan assign dropdown.
+- `subscriptions.plan_id` (FK to `plans.id`) is 100% authoritative for plan details and feature gating.
 
 ### Phase H: 6 Time-Boxed Platform & Cabinet Features
+- **Feature 1 ("Recommandé" Badge)**: Migration `20260805000000_phase_h_plan_is_recommended.sql`, `upsert_plan_details` RPC updated, dialogs and plan cards badge rendered.
+- **Feature 2 (Storage Limit Input Removal)**: Storage input removed from create/edit dialogs, defaults to `-1` (unlimited).
+- **Feature 3 (Role Scope Selection)**: Super Admin role dialogs support Cabinet (`is_platform_role = false`) vs. Plateforme (`is_platform_role = true`).
+- **Feature 4 (Dynamic Invite Role Dropdown)**: `invite-staff-dialog.tsx` renders dynamic cabinet roles (`is_platform_role = false`).
+- **Feature 5 (`max_accountants` Total Team Limit)**: `check_plan_limit` counts `WHERE tenant_id = v_tenant_id` for all tenant members.
+- **Feature 6 (Suspended Tenant Access Block & Sign-Out)**: `proxy.ts` redirects suspended users to `/suspended`; page features clean sign-out button.
 
-#### Feature 1: "Recommandé" Badge on Plans
-- **Database**: Migration [`20260805000000_phase_h_plan_is_recommended.sql`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/supabase/migrations/20260805000000_phase_h_plan_is_recommended.sql) added `is_recommended BOOLEAN NOT NULL DEFAULT false` to `public.plans` and updated `upsert_plan_details` RPC.
-- **Server Actions**: Updated `PlanFormData`, `createPlanAction`, and `updatePlanAction` in [`app/super-admin/plans-actions.ts`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/app/super-admin/plans-actions.ts).
-- **UI Components**: Updated [`create-plan-dialog.tsx`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/components/create-plan-dialog.tsx) and [`edit-plan-dialog.tsx`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/components/edit-plan-dialog.tsx) with "Marquer comme recommandé" checkbox. Updated [`app/super-admin/plans/page.tsx`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/app/super-admin/plans/page.tsx) to render a top badge on cards where `is_recommended === true`.
+### Phase I: Cabinet Admin Dashboard — White-Labeling & Client Management
 
-#### Feature 2: Storage Quota UI Cleanup
-- **UI**: Removed "Stockage GB max" input field from plan creation and editing dialogs. Form data defaults `max_storage_gb` to `-1` (unlimited) as storage is managed via Google Drive BYOS.
+#### Feature 1: White-Labeling & Brand Customization
+- **Migrations**:
+  - `20260806000000_phase_i_white_labeling.sql`: Adds `brand_logo_url`, `brand_primary_color`, `brand_secondary_color` to `public.tenants`, inserts `'branding:customize'` permission, wires into `pro` & `enterprise` plans, applies explicit column `GRANT UPDATE`, and sets up Supabase Storage bucket `'tenant-branding'`.
+  - `20260806000001_phase_i_branding_rpc.sql`: `update_tenant_branding` SECURITY DEFINER RPC with RBAC, soft-fail plan entitlement checks (`42501`), and audit logging (`branding.update`).
+- **Storage Security**: Storage bucket `'tenant-branding'` is public read. `INSERT`, `UPDATE`, `DELETE` RLS policies strictly enforce `(storage.foldername(name))[1] = get_my_tenant_id()::text` AND `(is_platform_role() OR can_perform_with_plan('branding:customize'))`.
+- **UI & Layout**: `/dashboard/settings/branding` settings page with logo uploader, dual color pickers, live theme preview card, and CSS variable injection in root layout (`app/dashboard/layout.tsx`).
+- **Verification Script**: `scripts/local-only/verify_phase_i_white_labeling.js` (PASSED 100%).
 
-#### Feature 3: Role Scope Selection (Platform vs. Cabinet)
-- **Server Actions**: Updated `createRoleAction(name, isPlatformRole)` in [`app/super-admin/roles-actions.ts`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/app/super-admin/roles-actions.ts).
-- **UI Component**: Updated [`create-role-dialog.tsx`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/components/create-role-dialog.tsx) to include a "Portée / Type de rôle" selector: Cabinet (`is_platform_role = false`) or Plateforme (`is_platform_role = true`).
-
-#### Feature 4: Dynamic Cabinet-Scoped Role Invites
-- **UI Component**: Updated [`invite-staff-dialog.tsx`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/components/invite-staff-dialog.tsx) and [`app/dashboard/team/page.tsx`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/app/dashboard/team/page.tsx) to fetch and render dynamic cabinet roles (`WHERE is_platform_role = false`).
-- **Server Action Validation**: Updated [`inviteStaffAction`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/app/dashboard/actions.ts) to query `public.roles` and reject any role where `is_platform_role === true` (hard security boundary).
-
-#### Feature 5: Total Team Member Limit (`max_accountants`)
-- **Database**: Migration [`20260805010000_phase_h_team_member_limit_rpc.sql`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/supabase/migrations/20260805010000_phase_h_team_member_limit_rpc.sql) updated `check_plan_limit` to count all team members in the tenant (`WHERE u.tenant_id = v_tenant_id`).
-- **Server Actions**: Removed `if (role === "accountant")` check in [`inviteStaffAction`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/app/dashboard/actions.ts) so quota checks execute unconditionally for all user invitations, with updated error message ("membres d'équipe").
-
-#### Feature 6: Suspended Cabinet Access Block & Clean Sign-Out
-- **Middleware Guard**: Updated [`proxy.ts`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/proxy.ts) so non-platform users belonging to a tenant with `status === 'suspended'` attempting to access `/dashboard/*` are redirected to `/suspended`.
-- **Suspended Page**: Created [`app/suspended/page.tsx`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/app/suspended/page.tsx) displaying a clear "Cabinet suspendu" notice with a sign-out button calling `await supabase.auth.signOut()` and navigating to `/`.
-- **Bypass**: Super Admin (`tenant_id = null`) bypasses tenant status gates completely.
-
-#### Auth Trigger Enhancement
-- **Database**: Migration [`20260805020000_fix_handle_new_user_trigger.sql`](file:///c:/Users/HP/Desktop/New%20folder/cabinets-platform/supabase/migrations/20260805020000_fix_handle_new_user_trigger.sql) updated `handle_new_user()` trigger to safely handle legacy enum casting, custom role name resolution, and `role_id` lookup.
+#### Feature 2: Client Management & Automated Google Drive Tree
+- **Migrations**:
+  - `20260806010000_phase_i_clients_schema.sql`: `public.clients` table (`id`, `tenant_id`, `name`, `client_type`, `email`, `phone`, `status`, `drive_folders`, `created_by`), RLS policies, and `plan_limits` key `'max_clients'` seeded per plan (`trial`: 3, `starter`: 10, `pro`: 50, `enterprise`: -1).
+  - `20260806010001_phase_i_client_rpc.sql`: RPCs `create_client_record` (atomic active client quota check), `update_client_drive_folders`, `delete_client_record` (rollback), and `upsert_plan_details` overload update.
+- **Server Action & Drive Automation**:
+  - `createClientAction` (`app/dashboard/clients/actions.ts`):
+    1. Call `create_client_record` RPC (DB Insert & quota check).
+    2. If Google Drive is connected, create Root folder + 5 subfolders (`Charges`, `Salaires`, `Comptes`, `Contrats`, `Documents Généraux`) via Google Drive REST API v3.
+    3. **Explicit Rollback**: If ANY Google Drive HTTP call fails, `catch` block explicitly calls `delete_client_record` RPC (deleting client DB row) and performs best-effort Drive folder cleanup.
+    4. Call `update_client_drive_folders` RPC to persist folder metadata JSONB.
+- **UI & Navigation**: `/dashboard/clients` management page with client table, status badges, folder shortcuts deep-linking into Drive, inline quota warning card, and `CreateClientDialog`.
+- **Verification Script**: `scripts/local-only/verify_phase_i_client_management.js` (PASSED 100%).
 
 ---
 
-## 3. Dedicated Credentials & Accounts
+## 3. Dedicated Credentials Reference
 
 ### Super Admin Dedicated Account
 - **Email**: `supadmin@cabinetsplatform.com`
@@ -94,9 +90,9 @@ description: Comprehensive technical architecture, database schema, completed fe
 - **Seeding Script**: `node scripts/local-only/create_custom_super_admin.js`
 
 ### Core Plans Catalog
-- **Essai Gratuit** (`trial`): Price = 0 MAD/month, Tier = 0
-- **Starter** (`starter`): Price = 290 MAD/month, Tier = 10
-- **Pro** (`pro`): Price = 790 MAD/month, Tier = 20
+- **Essai Gratuit** (`trial`): Price = 0 MAD/month, Tier = 0, Max Clients = 3
+- **Starter** (`starter`): Price = 290 MAD/month, Tier = 10, Max Clients = 10
+- **Pro** (`pro`): Price = 790 MAD/month, Tier = 20, Max Clients = 50
 - **Seeding Script**: `node scripts/local-only/seed_user_plans.js`
 
 ### Role Dedicated Test Accounts
@@ -117,6 +113,12 @@ description: Comprehensive technical architecture, database schema, completed fe
 ```bash
 # Type check (0 errors)
 npx tsc --noEmit
+
+# Phase I Feature 1: White-Labeling & Branding Isolated Verification
+node scripts/local-only/verify_phase_i_white_labeling.js
+
+# Phase I Feature 2: Client Management & Drive Automation Verification
+node scripts/local-only/verify_phase_i_client_management.js
 
 # Feature 3: Platform vs Cabinet Role Creation & Isolation
 node scripts/local-only/verify_feature3_platform_role.js

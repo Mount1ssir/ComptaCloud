@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, HardDrive } from "lucide-react"
+import { LayoutDashboard, Users, HardDrive, Sparkles, Briefcase } from "lucide-react"
 
 interface DashboardNavProps {
   userRole?: string | null
@@ -19,6 +19,13 @@ export function DashboardNav({ userRole }: DashboardNavProps) {
       href: "/dashboard",
       icon: LayoutDashboard,
       active: pathname === "/dashboard",
+      adminOnly: false,
+    },
+    {
+      label: "Clients",
+      href: "/dashboard/clients",
+      icon: Briefcase,
+      active: pathname.startsWith("/dashboard/clients"),
       adminOnly: false,
     },
     {

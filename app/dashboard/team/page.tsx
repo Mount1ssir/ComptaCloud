@@ -65,11 +65,12 @@ export default async function TeamPage() {
     console.error("Failed to query auth users status:", err)
   }
 
-  // Query dynamic cabinet-scoped roles (is_platform_role = false)
+  // Query dynamic cabinet-scoped team roles (is_platform_role = false AND name != 'client')
   const { data: availableRolesData } = await supabase
     .from("roles")
     .select("id, name")
     .eq("is_platform_role", false)
+    .neq("name", "client")
     .order("name", { ascending: true })
 
   const availableRoles = (availableRolesData || []).map(r => ({ id: r.id, name: r.name }))

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Sun, Languages, Cloud, LogOut } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -24,60 +25,49 @@ export function DashboardHeader() {
   const { resolvedTheme, setTheme } = useTheme()
   const [user, setUser] = React.useState<any>(null)
   const [cabinetName, setCabinetName] = React.useState<string>("Cabinet Platform")
+  const [logoUrl, setLogoUrl] = React.useState<string | null>(null)
+  const [isCabinetAdmin, setIsCabinetAdmin] = React.useState<boolean>(false)
 
   React.useEffect(() => {
     const resolveCabinetName = async () => {
       let resolvedName: string | null = null
+      let resolvedLogo: string | null = null
 
-      // 1. Try subdomain resolution from window.location.hostname
-      if (typeof window !== "undefined") {
-        const hostname = window.location.hostname
-        const parts = hostname.split(".")
-        
-        // E.g. "cabinet1.localhost" -> parts = ["cabinet1", "localhost"]
-        if (parts.length > 1 && parts[0] !== "localhost" && parts[0] !== "www" && parts[0] !== "app") {
-          const subdomain = parts[0]
-          const { data: tenantBySubdomain } = await supabase
-            .from("tenants")
-            .select("name")
-            .eq("subdomain", subdomain)
-            .maybeSingle()
-
-          if (tenantBySubdomain?.name) {
-            resolvedName = tenantBySubdomain.name
-          }
-        }
-      }
-
-      // 2. Fetch authenticated user profile and resolve tenant if no name from subdomain
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUser(user)
 
-        if (!resolvedName) {
-          const { data: userProfile } = await supabase
-            .from("users")
-            .select("tenant_id")
-            .eq("id", user.id)
+        const { data: userProfile } = await supabase
+          .from("users")
+          .select("tenant_id, roles(name)")
+          .eq("id", user.id)
+          .maybeSingle()
+
+        const rolesData = userProfile?.roles as unknown
+        const roleName = Array.isArray(rolesData)
+          ? (rolesData[0] as { name: string } | undefined)?.name || null
+          : (rolesData as { name: string } | null)?.name || null
+
+        if (roleName === "cabinet_admin") {
+          setIsCabinetAdmin(true)
+        }
+
+        if (userProfile?.tenant_id) {
+          const { data: tenantById } = await supabase
+            .from("tenants")
+            .select("name, brand_logo_url")
+            .eq("id", userProfile.tenant_id)
             .maybeSingle()
 
-          if (userProfile?.tenant_id) {
-            const { data: tenantById } = await supabase
-              .from("tenants")
-              .select("name")
-              .eq("id", userProfile.tenant_id)
-              .maybeSingle()
-
-            if (tenantById?.name) {
-              resolvedName = tenantById.name
-            }
+          if (tenantById) {
+            resolvedName = tenantById.name
+            resolvedLogo = tenantById.brand_logo_url
           }
         }
       }
 
-      if (resolvedName) {
-        setCabinetName(resolvedName)
-      }
+      if (resolvedName) setCabinetName(resolvedName)
+      if (resolvedLogo) setLogoUrl(resolvedLogo)
     }
 
     resolveCabinetName()
@@ -99,12 +89,19 @@ export function DashboardHeader() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background h-16">
       <div className="flex h-16 items-center justify-between px-6">
-        {/* Left Side: Logo / Cabinet Name */}
-        <div className="flex items-center">
-          <span className="text-xl font-bold tracking-tight text-foreground select-none">
+        {/* Left Side: Logo & Cabinet Name */}
+        <Link
+          href={isCabinetAdmin ? "/dashboard/settings/branding" : "/dashboard"}
+          className="flex items-center gap-3 group hover:opacity-85 transition-opacity cursor-pointer"
+          title={isCabinetAdmin ? "Personnaliser la marque et le logo du cabinet" : "Tableau de bord"}
+        >
+          {logoUrl && (
+            <img src={logoUrl} alt={cabinetName} className="h-8 max-w-[140px] object-contain shrink-0" />
+          )}
+          <span className="text-lg font-bold tracking-tight text-foreground select-none group-hover:text-primary transition-colors">
             {cabinetName}
           </span>
-        </div>
+        </Link>
 
         {/* Right Side: Icon Stack */}
         <div className="flex items-center gap-2">

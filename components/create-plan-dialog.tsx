@@ -40,6 +40,7 @@ export function CreatePlanDialog({ planPermissionsCatalog }: CreatePlanDialogPro
   const [isActive, setIsActive] = useState(true)
   const [isRecommended, setIsRecommended] = useState(false)
   const [maxAccountants, setMaxAccountants] = useState<number>(5)
+  const [maxClients, setMaxClients] = useState<number>(10)
   const [selectedPermKeys, setSelectedPermKeys] = useState<string[]>(["drive:connect", "drive:disconnect"])
 
   const [error, setError] = useState<string | null>(null)
@@ -74,6 +75,7 @@ export function CreatePlanDialog({ planPermissionsCatalog }: CreatePlanDialogPro
         is_recommended: isRecommended,
         permission_keys: selectedPermKeys,
         max_accountants: Number(maxAccountants),
+        max_clients: Number(maxClients),
         max_storage_gb: -1
       })
 
@@ -223,9 +225,9 @@ export function CreatePlanDialog({ planPermissionsCatalog }: CreatePlanDialogPro
           {/* Quotas & Limits */}
           <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Quotas & Limites d'Équipe
+              Quotas & Limites d'Utilisation
             </h4>
-            <div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label htmlFor="create-limit-acc" className="text-xs font-semibold text-foreground">
                   Membres d'équipe max (-1 = illimité)
@@ -235,6 +237,20 @@ export function CreatePlanDialog({ planPermissionsCatalog }: CreatePlanDialogPro
                   type="number"
                   value={maxAccountants}
                   onChange={e => setMaxAccountants(parseInt(e.target.value, 10))}
+                  required
+                  disabled={isPending}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="create-limit-cli" className="text-xs font-semibold text-foreground">
+                  Clients max (-1 = illimité)
+                </label>
+                <Input
+                  id="create-limit-cli"
+                  type="number"
+                  value={maxClients}
+                  onChange={e => setMaxClients(parseInt(e.target.value, 10))}
                   required
                   disabled={isPending}
                 />

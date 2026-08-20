@@ -8,6 +8,7 @@ export async function proxy(request: NextRequest) {
   // Define route check helpers
   const isSuperAdminRoute = pathname.startsWith('/super-admin')
   const isDashboardRoute = pathname.startsWith('/dashboard')
+  const isPortalRoute = pathname.startsWith('/portal')
   const isHomeRoute = pathname === '/'
 
   // Initialize response
@@ -66,7 +67,7 @@ export async function proxy(request: NextRequest) {
 
   // 1. Unauthenticated users
   if (!user) {
-    if (isSuperAdminRoute || isDashboardRoute) {
+    if (isSuperAdminRoute || isDashboardRoute || isPortalRoute) {
       url.pathname = '/'
       return redirectWithCookies(url)
     }
@@ -79,36 +80,32 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  // 2. Authenticated users: Check if user has a platform management role via is_platform_role() RPC
-  // OLD CHECK: const { data: profile, error } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
-  const { data: isPlatformRole, error } = await supabase.rpc('is_platform_role')
-
-  // Fallback: If profile/role check fails
-  if (error || isPlatformRole === null || isPlatformRole === undefined) {
-    console.error('Role check error for authenticated user:', error || 'RPC returned null/undefined')
-    if (isSuperAdminRoute || isDashboardRoute) {
-      // Clear cookies by setting expired cookies on redirect response
-      const redirectResponse = NextResponse.redirect(new URL('/', request.url))
-      request.cookies.getAll().forEach(cookie => {
-        if (cookie.name.startsWith('sb-')) {
-          redirectResponse.cookies.set(cookie.name, '', { maxAge: 0 })
-        }
-      })
-      return redirectResponse
-    }
-    return response
-  }
+  // 2. Authenticated users: Check roles via RPC
+  const { data: isPlatformRole } = await supabase.rpc('is_platform_role')
+  const { data: isClientRole } = await supabase.rpc('is_client_role')
 
   const isSuspendedRoute = pathname.startsWith('/suspended')
 
   // 3. Route protection and redirection rules
   if (isPlatformRole) {
-    // Platform management roles (e.g. super_admin) go to /super-admin and bypass tenant suspension
-    if (isDashboardRoute || isHomeRoute || isSuspendedRoute) {
+    // Platform management roles (e.g. super_admin) go to /super-admin
+    if (isDashboardRoute || isHomeRoute || isPortalRoute || isSuspendedRoute) {
       url.pathname = '/super-admin'
       return redirectWithCookies(url)
     }
+  } else if (isClientRole) {
+    // End-client roles go to /portal ONLY
+    if (isDashboardRoute || isSuperAdminRoute || isHomeRoute || isSuspendedRoute) {
+      url.pathname = '/portal'
+      return redirectWithCookies(url)
+    }
   } else {
+    // Cabinet staff roles (cabinet_admin, accountant)
+    if (isPortalRoute) {
+      url.pathname = '/dashboard'
+      return redirectWithCookies(url)
+    }
+
     // Check if caller's tenant is suspended
     const { data: userProfile } = await supabase
       .from('users')
@@ -134,7 +131,6 @@ export async function proxy(request: NextRequest) {
       return redirectWithCookies(url)
     }
 
-    // Tenant roles (cabinet_admin, accountant, client) go to /dashboard
     if (isSuperAdminRoute || isHomeRoute) {
       url.pathname = '/dashboard'
       return redirectWithCookies(url)
