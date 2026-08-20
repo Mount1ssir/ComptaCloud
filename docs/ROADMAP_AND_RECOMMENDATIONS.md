@@ -9,19 +9,6 @@
 
 ## Prioritized Feature & Hardening Backlog
 
-```mermaid
-gantt
-    title Feature Roadmap & Implementation Order
-    dateFormat  YYYY-MM-DD
-    section Security & Hardening
-    Server-Signed Document Proxy Endpoint   :active, h1, 2026-09-01, 10d
-    Cabinet Staff Suspension Toggle        :h2, after h1, 7d
-    section Feature Enhancements
-    Client-to-Staff Portfolio Assignments  :f1, after h2, 14d
-    Granular Drive Custom Folder Permission :f2, after f1, 5d
-    i18n Multi-Language Support            :f3, after f2, 12d
-```
-
 ---
 
 ### 1. Server-Signed Document Proxy Endpoint (Near-Term Security Hardening)
