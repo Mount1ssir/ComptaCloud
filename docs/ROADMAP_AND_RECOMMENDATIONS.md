@@ -6,11 +6,6 @@
 
 ---
 
-## Executive Summary
-
-Following the completion of **Phase I** (White-Labeling & Client Management), **Phase II** (GED & Document Management Foundation), and **Phase III** (Client Authentication & Portal Shell), this roadmap outlines the prioritized technical enhancements, security hardening items, and feature extensions for future development cycles.
-
----
 
 ## Prioritized Feature & Hardening Backlog
 
