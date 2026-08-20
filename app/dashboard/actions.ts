@@ -53,6 +53,22 @@ export async function inviteStaffAction(formData: FormData) {
     return { success: false, error: "Aucun cabinet associé à votre compte." }
   }
 
+  // Check plan quota limits for accountant invitations (Fail-Closed)
+  if (role === "accountant") {
+    const { data: limitResult, error: limitError } = await supabase.rpc("check_plan_limit", {
+      p_limit_key: "max_accountants"
+    })
+
+    const limitData = limitResult as { allowed?: boolean; message?: string } | null
+
+    if (limitError || !limitData || limitData.allowed === false) {
+      return {
+        success: false,
+        error: limitData?.message || limitError?.message || "Limite de comptables atteinte pour votre forfait."
+      }
+    }
+  }
+
   // Service-role admin client created strictly for the single inviteUserByEmail call
   const supabaseAdmin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -149,9 +165,8 @@ export async function disconnectDriveAction() {
     .eq("id", user.id)
     .maybeSingle()
 
-  // Defense-in-depth: Verify calling user has 'drive:disconnect' permission (or super_admin bypass)
-  // OLD CHECK: if (!callerProfile || callerProfile.role !== "cabinet_admin" || !callerProfile.tenant_id)
-  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "drive:disconnect" })
+  // Defense-in-depth: Verify calling user has 'drive:disconnect' permission AND plan authorization (or super_admin bypass)
+  const { data: isAuthorized } = await supabase.rpc("can_perform_with_plan", { p_perm_key: "drive:disconnect" })
 
   if (!callerProfile || !callerProfile.tenant_id || !isAuthorized) {
     return { success: false, error: "Vous n'êtes pas autorisé à effectuer cette action." }

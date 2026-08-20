@@ -1,0 +1,225 @@
+export type PermissionScope = "cabinet" | "plan" | "platform"
+
+export type PermissionCategory =
+  "audit" | "storage" | "subscriptions" | "team" | "tenants"
+
+export type PermissionKey =
+  | "drive:connect"
+  | "drive:disconnect"
+  | "logs:view_platform"
+  | "subscriptions:view"
+  | "team:invite"
+  | "team:update_title"
+  | "team:view"
+  | "tenants:manage"
+  | "tenants:view_all"
+
+export interface PermissionDefinition {
+  key: PermissionKey
+  label: string
+  category: PermissionCategory
+  scope: PermissionScope
+}
+
+/** Flat array of all system permissions definitions */
+export const SYSTEM_PERMISSIONS: PermissionDefinition[] = [
+  {
+    key: "subscriptions:view",
+    label: "Voir l’abonnement du cabinet",
+    category: "subscriptions",
+    scope: "cabinet",
+  },
+  {
+    key: "team:invite",
+    label: "Inviter des membres dans l’équipe du cabinet",
+    category: "team",
+    scope: "cabinet",
+  },
+  {
+    key: "team:update_title",
+    label: "Modifier le titre d’un membre de l’équipe",
+    category: "team",
+    scope: "cabinet",
+  },
+  {
+    key: "team:view",
+    label: "Voir l’équipe du cabinet",
+    category: "team",
+    scope: "cabinet",
+  },
+  {
+    key: "drive:connect",
+    label: "Connecter un compte Google Drive (BYOS)",
+    category: "storage",
+    scope: "plan",
+  },
+  {
+    key: "drive:disconnect",
+    label: "Déconnecter le compte Google Drive (BYOS)",
+    category: "storage",
+    scope: "plan",
+  },
+  {
+    key: "logs:view_platform",
+    label: "Voir les journaux d’audit de la plateforme",
+    category: "audit",
+    scope: "platform",
+  },
+  {
+    key: "tenants:manage",
+    label: "Gérer les cabinets (création, suspension, abonnements)",
+    category: "tenants",
+    scope: "platform",
+  },
+  {
+    key: "tenants:view_all",
+    label: "Voir tous les cabinets de la plateforme",
+    category: "tenants",
+    scope: "platform",
+  },
+]
+
+/** Grouped by scope ('platform' | 'cabinet' | 'plan') -> category -> PermissionDefinition[] */
+export const PERMISSIONS_BY_SCOPE: Record<
+  PermissionScope,
+  Record<string, PermissionDefinition[]>
+> = {
+  cabinet: {
+    subscriptions: [
+      {
+        key: "subscriptions:view",
+        label: "Voir l’abonnement du cabinet",
+        category: "subscriptions",
+        scope: "cabinet",
+      },
+    ],
+    team: [
+      {
+        key: "team:invite",
+        label: "Inviter des membres dans l’équipe du cabinet",
+        category: "team",
+        scope: "cabinet",
+      },
+      {
+        key: "team:update_title",
+        label: "Modifier le titre d’un membre de l’équipe",
+        category: "team",
+        scope: "cabinet",
+      },
+      {
+        key: "team:view",
+        label: "Voir l’équipe du cabinet",
+        category: "team",
+        scope: "cabinet",
+      },
+    ],
+  },
+  plan: {
+    storage: [
+      {
+        key: "drive:connect",
+        label: "Connecter un compte Google Drive (BYOS)",
+        category: "storage",
+        scope: "plan",
+      },
+      {
+        key: "drive:disconnect",
+        label: "Déconnecter le compte Google Drive (BYOS)",
+        category: "storage",
+        scope: "plan",
+      },
+    ],
+  },
+  platform: {
+    audit: [
+      {
+        key: "logs:view_platform",
+        label: "Voir les journaux d’audit de la plateforme",
+        category: "audit",
+        scope: "platform",
+      },
+    ],
+    tenants: [
+      {
+        key: "tenants:manage",
+        label: "Gérer les cabinets (création, suspension, abonnements)",
+        category: "tenants",
+        scope: "platform",
+      },
+      {
+        key: "tenants:view_all",
+        label: "Voir tous les cabinets de la plateforme",
+        category: "tenants",
+        scope: "platform",
+      },
+    ],
+  },
+}
+
+/** Grouped by category ('team' | 'storage' | 'subscriptions' | 'tenants' | 'audit') */
+export const PERMISSIONS_BY_CATEGORY: Record<string, PermissionDefinition[]> = {
+  subscriptions: [
+    {
+      key: "subscriptions:view",
+      label: "Voir l’abonnement du cabinet",
+      category: "subscriptions",
+      scope: "cabinet",
+    },
+  ],
+  team: [
+    {
+      key: "team:invite",
+      label: "Inviter des membres dans l’équipe du cabinet",
+      category: "team",
+      scope: "cabinet",
+    },
+    {
+      key: "team:update_title",
+      label: "Modifier le titre d’un membre de l’équipe",
+      category: "team",
+      scope: "cabinet",
+    },
+    {
+      key: "team:view",
+      label: "Voir l’équipe du cabinet",
+      category: "team",
+      scope: "cabinet",
+    },
+  ],
+  storage: [
+    {
+      key: "drive:connect",
+      label: "Connecter un compte Google Drive (BYOS)",
+      category: "storage",
+      scope: "plan",
+    },
+    {
+      key: "drive:disconnect",
+      label: "Déconnecter le compte Google Drive (BYOS)",
+      category: "storage",
+      scope: "plan",
+    },
+  ],
+  audit: [
+    {
+      key: "logs:view_platform",
+      label: "Voir les journaux d’audit de la plateforme",
+      category: "audit",
+      scope: "platform",
+    },
+  ],
+  tenants: [
+    {
+      key: "tenants:manage",
+      label: "Gérer les cabinets (création, suspension, abonnements)",
+      category: "tenants",
+      scope: "platform",
+    },
+    {
+      key: "tenants:view_all",
+      label: "Voir tous les cabinets de la plateforme",
+      category: "tenants",
+      scope: "platform",
+    },
+  ],
+}

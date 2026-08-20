@@ -27,11 +27,10 @@ export async function GET(request: Request) {
     .eq("id", user.id)
     .maybeSingle()
 
-  // Defense-in-depth: Verify calling user has 'drive:connect' permission (or super_admin bypass)
-  // OLD CHECK: if (!profile || profile.role !== "cabinet_admin" || !profile.tenant_id)
-  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "drive:connect" })
+  // Defense-in-depth: Verify calling user has 'drive:connect' permission AND plan authorization (or super_admin bypass)
+  const { data: isAuthorized } = await supabase.rpc("can_perform_with_plan", { p_perm_key: "drive:connect" })
 
-  if (!profile || !profile.tenant_id || !isAuthorized) {
+  if (!profile || !isAuthorized) {
     return NextResponse.redirect(`${redirectTarget}?status=error&message=unauthorized`)
   }
 
@@ -88,17 +87,22 @@ export async function GET(request: Request) {
       }
     }
 
-    // 3. Save encrypted refresh token & connection state via RPC
-    const { error: rpcError } = await supabase.rpc("save_tenant_drive_token", {
-      p_tenant_id: profile.tenant_id,
-      p_refresh_token: refreshToken,
-      p_account_email: connectedEmail || "Connected Google Account",
-      p_encryption_key: encryptionKey
-    })
+    // 3. Save encrypted refresh token & connection state via RPC (if tenant-bound)
+    const stateParam = url.searchParams.get("state")
+    const targetTenantId = profile.tenant_id || (stateParam && stateParam !== "platform" ? stateParam : null)
 
-    if (rpcError) {
-      console.error("Failed to save tenant drive token:", rpcError)
-      return NextResponse.redirect(`${redirectTarget}?status=error&message=db_save_failed`)
+    if (targetTenantId) {
+      const { error: rpcError } = await supabase.rpc("save_tenant_drive_token", {
+        p_tenant_id: targetTenantId,
+        p_refresh_token: refreshToken,
+        p_account_email: connectedEmail || "Connected Google Account",
+        p_encryption_key: encryptionKey
+      })
+
+      if (rpcError) {
+        console.error("Failed to save tenant drive token:", rpcError)
+        return NextResponse.redirect(`${redirectTarget}?status=error&message=db_save_failed`)
+      }
     }
 
     // 4. Insert audit log

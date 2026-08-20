@@ -16,12 +16,11 @@ export async function GET(request: Request) {
     .eq("id", user.id)
     .maybeSingle()
 
-  // Defense-in-depth: Verify calling user has 'drive:connect' permission (or super_admin bypass)
-  // OLD CHECK: if (!profile || profile.role !== "cabinet_admin" || !profile.tenant_id)
-  const { data: isAuthorized } = await supabase.rpc("can_perform", { perm_key: "drive:connect" })
+  // Defense-in-depth: Verify calling user has 'drive:connect' permission AND plan authorization (or super_admin bypass)
+  const { data: isAuthorized } = await supabase.rpc("can_perform_with_plan", { p_perm_key: "drive:connect" })
 
-  if (!profile || !profile.tenant_id || !isAuthorized) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+  if (!profile || !isAuthorized) {
+    return NextResponse.json({ error: "Action non autorisée sur votre forfait actuel. Veuillez mettre à niveau votre abonnement." }, { status: 403 })
   }
 
   const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID
@@ -40,7 +39,7 @@ export async function GET(request: Request) {
   googleAuthUrl.searchParams.set("scope", scope)
   googleAuthUrl.searchParams.set("access_type", "offline")
   googleAuthUrl.searchParams.set("prompt", "consent")
-  googleAuthUrl.searchParams.set("state", profile.tenant_id)
+  googleAuthUrl.searchParams.set("state", profile.tenant_id || "platform")
 
   return NextResponse.redirect(googleAuthUrl.toString())
 }
