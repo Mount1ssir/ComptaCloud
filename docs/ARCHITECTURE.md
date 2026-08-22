@@ -239,10 +239,3 @@ When a new client is created via `createClientAction`:
 
 ---
 
-## 8. Known Limitations & Accepted Gaps
-
-1. **Storage Limit Enforcement (`max_storage_gb`)**: `max_storage_gb` is defined in `plan_limits` as a quota placeholder, but file-size sum enforcement across Google Drive files is not enforced in v1.
-2. **Direct Google Drive Links in Portal**: `/portal` currently uses `drive_web_view_link` directly for document viewing rather than a server-signed proxy stream endpoint.
-3. **Cabinet-Wide Client Visibility**: Accountants can view all clients belonging to their tenant. Client-to-accountant assignment (scoping accountants to specific clients) is deferred.
-4. **Single Contact per Client**: Each `clients` record supports exactly one primary auth login (`auth_user_id`). Multi-contact logins for corporate clients are deferred.
-5. **No Dedicated Notifications Table**: Staff dashboard alert badges use simple user timestamp comparisons (`last_dashboard_viewed_at` pattern) rather than a persistent notifications queue.
