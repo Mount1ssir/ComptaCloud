@@ -1,4 +1,4 @@
-# Cabinets Platform
+# ComptaCloud or Cabinet Platform
 
 > Multi-tenant SaaS platform for accounting firms (*cabinets comptables*) — role-based team management, subscription-tiered feature gating, Google Drive-backed client document management, and a dedicated client portal.
 
