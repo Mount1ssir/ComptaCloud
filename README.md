@@ -123,3 +123,15 @@ This project is under active development. Notable current gaps are tracked in th
 - No multi-language support yet (French-only UI)
 
 ---
+
+I used those sources for the interface : 
+- https://reui.io/components/icon-stack
+
+
+-https://ui.shadcn.com/create?pointer=true&rtl=true
+
+
+-https://efferd.com/blocks/auth
+
+Install the @efferd/auth-5 block into this project.
+
